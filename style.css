@@ -1,4 +1,4 @@
-/* style.css (v4.9 - Restored Original Design with Sticky Footer) */
+/* style.css (v5.0 - Full Width Mobile Design) */
 @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;700&display=swap');
 
 :root {
@@ -15,12 +15,13 @@ body {
     background-color: var(--background-color);
     margin: 0;
     /* Add padding to the bottom to prevent the fixed footer from overlapping content */
-    padding: 1.5rem 0 120px 0; 
+    padding: 1rem 0 120px 0; /* Reduced top padding */
     -webkit-tap-highlight-color: transparent;
 }
 .container {
     background-color: var(--surface-color);
-    padding: 0 1.5rem;
+    /* Reduced horizontal padding to make content wider on mobile */
+    padding: 0 1rem; 
     width: 100%;
     max-width: 600px;
     margin: 0 auto;
@@ -203,7 +204,7 @@ input[type="text"]:focus, input[type="tel"]:focus {
     line-height: 1.6;
 }
 .payment-instructions .highlight {
-    color: var(--highlight-color);
+    color: #c2410c; /* A darker, more readable red/orange */
     font-size: 1.5rem;
     font-weight: 700;
 }
