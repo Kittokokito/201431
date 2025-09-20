@@ -1,4 +1,4 @@
-// script.js (v4.5 - Final Corrected Version)
+// script.js (v5.1 - Kittokito Inspired Design)
 const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbz8jkelnyGNiTQFiZ-evnGdOJorQkXnxqPXu__DYnnbWCHv0err_W10E1eP6EI2aMa0bQ/exec';
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -6,6 +6,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('order-form');
     const menuContainer = document.getElementById('menu-container');
     const loadingMessage = document.getElementById('loading-menu');
+    const statusMessage = document.getElementById('status-message');
     const getLocationBtn = document.getElementById('get-location-btn');
     const locationStatus = document.getElementById('location-status');
     const totalPriceValue = document.getElementById('total-price-value');
@@ -15,6 +16,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const summaryModal = document.getElementById('summary-modal');
     const customerSummary = document.getElementById('customer-summary');
     const orderSummaryList = document.getElementById('order-summary-list');
+    const costSummary = document.getElementById('cost-summary');
     const summaryFoodTotal = document.getElementById('summary-food-total');
     const summaryDistance = document.getElementById('summary-distance');
     const summaryDeliveryFee = document.getElementById('summary-delivery-fee');
@@ -33,17 +35,21 @@ window.addEventListener('DOMContentLoaded', () => {
     // --- Main Functions ---
     async function fetchMenu() {
         try {
-            const response = await fetch(`${WEB_APP_URL}`);
+            const response = await fetch(`${WEB_APP_URL}?action=getMenu`);
+            if (!response.ok) throw new Error(`Network response was not ok: ${response.statusText}`);
             const result = await response.json();
             if (result.status === 'success') {
                 menuData = result.data;
                 renderMenu(menuData);
-            } else { loadingMessage.textContent = 'ไม่สามารถโหลดเมนูได้'; }
-        } catch (error) { loadingMessage.textContent = 'เกิดข้อผิดพลาดในการเชื่อมต่อ'; }
+            } else { throw new Error(result.message); }
+        } catch (error) { 
+            loadingMessage.textContent = `เกิดข้อผิดพลาดในการโหลดเมนู: ${error.message}`;
+            loadingMessage.style.color = 'red';
+        }
     }
 
     function renderMenu(items) {
-        loadingMessage.style.display = 'none';
+        if(loadingMessage) loadingMessage.style.display = 'none';
         menuContainer.innerHTML = '';
         items.forEach((item) => {
             let subOptionsHTML = '';
@@ -55,27 +61,27 @@ window.addEventListener('DOMContentLoaded', () => {
                 });
                 subOptionsHTML += '</div>';
             }
-            const specialRequestHTML = `<div class="special-request-container"><input type="text" class="special-request-input" data-itemid="${item.ItemID}" placeholder="คำสั่งพิเศษ (เช่น ไม่ใส่ผัก)"></div>`;
+            const specialRequestHTML = `<input type="text" class="special-request-input" data-itemid="${item.ItemID}" placeholder="คำสั่งพิเศษ (เช่น ไม่ใส่ผัก)">`;
+            
             const menuItemHTML = `
                 <div class="menu-item-dynamic" id="${item.ItemID}">
-                    <div class="menu-item-header">
-                        <img src="${item.ImageURL}" alt="${item.Name}" onerror="this.src='https://placehold.co/140x140/EFEFEF/AAAAAA?text=Image'">
-                        <div class="menu-item-info">
-                            <span>${item.Name}</span>
-                            <small>${item.Price} บาท</small>
-                        </div>
-                        <div class="quantity-controls">
-                            <button type="button" class="btn-minus" data-itemid="${item.ItemID}">-</button>
-                            <span class="quantity-display" id="qty-${item.ItemID}">0</span>
-                            <button type="button" class="btn-plus" data-itemid="${item.ItemID}">+</button>
-                        </div>
+                    <img src="${item.ImageURL}" alt="${item.Name}" onerror="this.src='https://placehold.co/160x160/EFEFEF/AAAAAA?text=Image'">
+                    <div class="menu-item-details">
+                        <span class="item-name">${item.Name}</span>
+                        <span class="item-price">${item.Price} บาท</span>
+                        ${subOptionsHTML}
+                        ${specialRequestHTML}
                     </div>
-                    ${subOptionsHTML}
-                    ${specialRequestHTML}
+                    <div class="quantity-controls">
+                        <button type="button" class="btn-minus" data-itemid="${item.ItemID}">-</button>
+                        <span class="quantity-display" id="qty-${item.ItemID}">0</span>
+                        <button type="button" class="btn-plus" data-itemid="${item.ItemID}">+</button>
+                    </div>
                 </div>`;
             menuContainer.innerHTML += menuItemHTML;
         });
         addQuantityButtonListeners();
+        updateTotals();
     }
     
     function addQuantityButtonListeners() {
@@ -108,7 +114,7 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
         totalPriceValue.textContent = foodTotal;
-        grandTotalValue.textContent = foodTotal; // Initially show grand total as food total
+        grandTotalValue.textContent = foodTotal; 
     }
 
     function collectOrderData() {
@@ -132,19 +138,16 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
-        
-        const latitude = userLocation ? userLocation.latitude : null;
-        const longitude = userLocation ? userLocation.longitude : null;
 
         return {
             name: document.getElementById('customer-name').value,
             phone: document.getElementById('customer-phone').value,
             address: document.getElementById('customer-address').value,
             orderDetailsRaw: orderDetails,
-            orderDetails: orderDetails.map(item => `${item.name}: ${item.qty}`).join(', '),
+            orderDetails: orderDetails.map(item => `${item.name} (x${item.qty})`).join(', '),
             totalPrice: foodTotal,
-            latitude: latitude,
-            longitude: longitude
+            latitude: userLocation.latitude,
+            longitude: userLocation.longitude
         };
     }
     
@@ -165,12 +168,12 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     reviewOrderBtn.addEventListener('click', async () => {
-        // Validation checks
         if (!userLocation) {
             alert("กรุณากด 'ขอตำแหน่งปัจจุบัน' ก่อนครับ"); return;
         }
         if (!form.checkValidity()) {
-            alert("กรุณากรอกรายละเอียดการจัดส่งให้ครบถ้วน"); return;
+            form.reportValidity(); // This will show the browser's default validation messages
+            return;
         }
         
         currentOrderData = collectOrderData();
@@ -188,15 +191,8 @@ window.addEventListener('DOMContentLoaded', () => {
         orderSummaryList.innerHTML = currentOrderData.orderDetailsRaw.map(item => `<div class="item-line"><span>- ${item.name} (x${item.qty})</span> <span>${item.total} บ.</span></div>`).join('');
 
         try {
-            const feeResponse = await fetch(WEB_APP_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'calculateFee',
-                    lat: currentOrderData.latitude,
-                    lng: currentOrderData.longitude
-                })
-            });
+            const feeResponse = await fetch(`${WEB_APP_URL}?action=getFee&lat=${currentOrderData.latitude}&lng=${currentOrderData.longitude}`);
+            if (!feeResponse.ok) throw new Error("Server error calculating fee.");
             const feeResult = await feeResponse.json();
 
             if (feeResult.status === 'success') {
@@ -211,7 +207,7 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         } catch(error) {
             alert(`เกิดข้อผิดพลาดในการคำนวณค่าส่ง: ${error.message}`);
-            currentOrderData.deliveryFee = -1; // Indicate error
+            currentOrderData.deliveryFee = -1;
             summaryDeliveryFee.textContent = "คำนวณไม่ได้";
             summaryGrandTotal.textContent = "N/A";
         } finally {
@@ -231,14 +227,10 @@ window.addEventListener('DOMContentLoaded', () => {
         confirmOrderBtn.disabled = true;
         confirmOrderBtn.textContent = 'กำลังส่ง...';
 
-        const finalOrderPayload = {
-            ...currentOrderData,
-            action: 'submitOrder'
-        };
+        const finalOrderPayload = { ...currentOrderData, action: 'submitOrder' };
 
         fetch(WEB_APP_URL, {
-            method: 'POST', 
-            mode: 'no-cors',
+            method: 'POST', mode: 'no-cors',
             body: JSON.stringify(finalOrderPayload)
         })
         .then(() => {
